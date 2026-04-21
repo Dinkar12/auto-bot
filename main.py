@@ -5,18 +5,18 @@ import requests
 import time
 from datetime import datetime
 
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 VERCEL_TOKEN = os.environ.get("VERCEL_TOKEN", "")
 GITHUB_USERNAME = os.environ["GITHUB_USERNAME"]
 
 
 # ─────────────────────────────────────────
-# STEP 1: Generate project using Claude
+# STEP 1: Generate project using Gemini
 # ─────────────────────────────────────────
 
 def generate_project():
-    print("[1/4] Asking Claude to generate a trending project...")
+    print("[1/3] Asking Gemini to generate a trending project...")
 
     today = datetime.now().strftime("%B %Y")
 
@@ -41,32 +41,31 @@ Return ONLY valid JSON (absolutely no markdown, no backticks, no explanation). U
 }}
 
 Rules:
-- deploy_type must be "static" (HTML/CSS/JS only — no frameworks)
+- deploy_type must be "static" (HTML/CSS/JS only no frameworks)
 - The project must be VISUALLY stunning with modern design (glassmorphism, gradients, animations)
 - It must have REAL functionality (not just a landing page)
 - Make it something a developer would genuinely be proud to show
-- All file contents must be complete and working — no placeholders"""
+- All file contents must be complete and working no placeholders"""
 
     res = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        },
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}",
+        headers={"Content-Type": "application/json"},
         json={
-            "model": "claude-sonnet-4-6",
-            "max_tokens": 8000,
-            "messages": [{"role": "user", "content": prompt}]
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.9,
+                "maxOutputTokens": 8192
+            }
         }
     )
 
     data = res.json()
-    if "content" not in data:
-        raise Exception(f"Claude API error: {data}")
-    raw = data["content"][0]["text"].strip()
 
-    # Strip markdown fences if Claude added them
+    if "candidates" not in data:
+        raise Exception(f"Gemini API error: {data}")
+
+    raw = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
     if "```" in raw:
         parts = raw.split("```")
         for part in parts:
@@ -86,7 +85,7 @@ Rules:
 # ─────────────────────────────────────────
 
 def create_github_repo(repo_name, description):
-    print(f"[2/4] Creating GitHub repo: {repo_name}")
+    print(f"[2/3] Creating GitHub repo: {repo_name}")
 
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -119,16 +118,15 @@ def push_files_to_github(repo_name, files, title, tech_stack):
         "Accept": "application/vnd.github.v3+json"
     }
 
-    # Add README
     files["README.md"] = f"""# {title}
 
-Auto-generated portfolio project — built with {', '.join(tech_stack)}.
+Auto-generated portfolio project built with {', '.join(tech_stack)}.
 
 ## Live Demo
 https://{GITHUB_USERNAME}.github.io/{repo_name}
 
 ---
-*Generated automatically using Claude AI + GitHub Actions*
+*Generated automatically using Gemini AI + GitHub Actions*
 """
 
     for filename, content in files.items():
@@ -159,14 +157,14 @@ https://{GITHUB_USERNAME}.github.io/{repo_name}
 # ─────────────────────────────────────────
 
 def enable_github_pages(repo_name):
-    print("[3/4] Enabling GitHub Pages...")
+    print("[3/3] Enabling GitHub Pages...")
 
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
 
-    res = requests.post(
+    requests.post(
         f"https://api.github.com/repos/{GITHUB_USERNAME}/{repo_name}/pages",
         headers=headers,
         json={"source": {"branch": "main", "path": "/"}}
@@ -178,17 +176,14 @@ def enable_github_pages(repo_name):
 
 
 def deploy_to_vercel(repo_name, files):
-    print("[3/4] Deploying to Vercel...")
+    print("[3/3] Deploying to Vercel...")
 
     headers = {
         "Authorization": f"Bearer {VERCEL_TOKEN}",
         "Content-Type": "application/json"
     }
 
-    vercel_files = [
-        {"file": name, "data": content}
-        for name, content in files.items()
-    ]
+    vercel_files = [{"file": name, "data": content} for name, content in files.items()]
 
     res = requests.post(
         "https://api.vercel.com/v13/deployments",
@@ -213,9 +208,6 @@ def deploy(repo_name, deploy_type, files):
         return deploy_to_vercel(repo_name, files)
     else:
         return enable_github_pages(repo_name)
-
-
-
 
 
 # ─────────────────────────────────────────
