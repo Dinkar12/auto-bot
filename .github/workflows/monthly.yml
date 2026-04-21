@@ -2,8 +2,8 @@ name: Monthly Auto Project Bot
 
 on:
   schedule:
-    - cron: "0 9 1 * *"   # Runs 1st of every month at 9:00 AM UTC
-  workflow_dispatch:        # Also allows manual trigger from GitHub Actions tab
+    - cron: "0 9 1 * *"
+  workflow_dispatch:
 
 jobs:
   run-pipeline:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Run automation pipeline
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           GITHUB_USERNAME: ${{ secrets.MY_GITHUB_USERNAME }}
