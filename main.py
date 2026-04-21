@@ -62,6 +62,8 @@ Rules:
     )
 
     data = res.json()
+    if "content" not in data:
+        raise Exception(f"Claude API error: {data}")
     raw = data["content"][0]["text"].strip()
 
     # Strip markdown fences if Claude added them
